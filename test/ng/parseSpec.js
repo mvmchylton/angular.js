@@ -1679,12 +1679,10 @@ describe('parser', function() {
   forEach([true, false], function(cspEnabled) {
     describe('csp: ' + cspEnabled, function() {
 
-      beforeEach(module(function($provide) {
-        $provide.decorator('$sniffer', function($delegate) {
-          expect($delegate.csp.noUnsafeEval === true ||
-                 $delegate.csp.noUnsafeEval === false).toEqual(true);
-          $delegate.csp.noUnsafeEval = cspEnabled;
-        });
+      beforeEach(module(function() {
+        expect(csp().noUnsafeEval === true ||
+               csp().noUnsafeEval === false).toEqual(true);
+        csp().noUnsafeEval = cspEnabled;
       }, provideLog));
 
       beforeEach(inject(function($rootScope) {
@@ -2669,6 +2667,20 @@ describe('parser', function() {
               scope.$eval('{}["__proto__"].foo = 1');
             }).toThrowMinErr('$parse', 'isecfld');
 
+            expect(function() {
+              scope.$eval('{}[["__proto__"]]');
+            }).toThrowMinErr('$parse', 'isecfld');
+            expect(function() {
+              scope.$eval('{}[["__proto__"]].foo = 1');
+            }).toThrowMinErr('$parse', 'isecfld');
+
+            expect(function() {
+              scope.$eval('0[["__proto__"]]');
+            }).toThrowMinErr('$parse', 'isecfld');
+            expect(function() {
+              scope.$eval('0[["__proto__"]].foo = 1');
+            }).toThrowMinErr('$parse', 'isecfld');
+
             scope.a = "__pro";
             scope.b = "to__";
             expect(function() {
@@ -2679,6 +2691,15 @@ describe('parser', function() {
             }).toThrowMinErr('$parse', 'isecfld');
           });
         });
+
+       it('should prevent the exploit', function() {
+          expect(function() {
+            scope.$eval('(1)[{0: "__proto__", 1: "__proto__", 2: "__proto__", 3: "safe", length: 4, toString: [].pop}].foo = 1');
+          }).toThrow();
+          if (!msie || msie > 10) {
+            expect((1)['__proto__'].foo).toBeUndefined();
+          }
+       });
 
         it('should prevent the exploit', function() {
           expect(function() {
